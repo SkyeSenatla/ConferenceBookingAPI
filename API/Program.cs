@@ -1,33 +1,31 @@
-using Microsoft.AspNetCore.Mvc.Diagnostics;
-using Scalar.AspNetCore; 
- 
- //Phase 1 : Builder - Register the services into the app
- /// Dependency injection container
- 
- var builder = WebApplication.CreateBuilder(args);
+using Scalar.AspNetCore;
 
- //Register Your services
+// ════════════════════════════════════════════════════
+// PHASE 1 — BUILDER: Register services into the
+//           Dependency Injection container
+// ════════════════════════════════════════════════════
+var builder = WebApplication.CreateBuilder(args);
 
- builder.Services.AddControllers(); //registering controller support
- builder.Services.AddOpenApi(); // Registering built-in OpenApi document generation
+builder.Services.AddControllers();  // Register controller support
+builder.Services.AddOpenApi();      // Register built-in OpenAPI document generation
 
+// ════════════════════════════════════════════════════
+// TRANSITION — Build() seals the DI container.
+// Nothing can be registered after this line.
+// ════════════════════════════════════════════════════
+var app = builder.Build();
 
- var app = builder.Build(); //Nothing can be regsitered after this
-
-//Phase 2: Pipeline - Configure your Middleware chain
-// NB: Order matters!! 
-
+// ════════════════════════════════════════════════════
+// PHASE 2 — PIPELINE: Configure the middleware chain.
+// Order matters. Every request passes through these
+// in sequence, top to bottom.
+// ════════════════════════════════════════════════════
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(); 
+    app.MapOpenApi();             // Serves /openapi/v1.json
+    app.MapScalarApiReference();  // Serves the Scalar UI at /scalar/v1
 }
-app.MapControllers(); 
-/*
-app.MapGet("api/sesssion", async() =>
-{
-    await Task.Delay(100);
-return Results.Ok(DummyDataStore.sesssions);
-}); */
 
-app.Run(); 
+app.MapControllers();  // Activates attribute routing for all [ApiController] classes
+
+app.Run();  // Starts the Kestrel web server — this line blocks until the process exits
