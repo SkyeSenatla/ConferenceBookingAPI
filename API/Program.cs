@@ -5,6 +5,8 @@ using API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using API.Data;
+using Microsoft.EntityFrameworkCore;
 
 //════════════════════════════════════════════════════
 // Bootstrap Serilog before the host is built.
@@ -72,6 +74,8 @@ try
     // Previously AuthController built tokens itself with a hardcoded key.
     // Now the controller delegates to this service; token logic lives in one place.
     builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddDbContext<BookingDbContext>(options => 
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
     //════════════════════════════════════════════════════
     // TRANSITION — Build() seals the DI container.

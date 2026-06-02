@@ -4,6 +4,7 @@ using API.Data;
 using API.DTOs;
 using API.Exceptions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers;
 
@@ -15,7 +16,7 @@ namespace API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class BookingsController : ControllerBase
+public class BookingsController(BookingDbContext db) : ControllerBase
 {
     // ── PATTERN A: IActionResult ──────────────────────────────────────
     // Flexible — can return any response type.
@@ -36,7 +37,7 @@ public class BookingsController : ControllerBase
     public async Task<ActionResult<IEnumerable<Booking>>> GetBookingsAsync()
     {
 
-        await Task.Delay(200); // stands in for: await _db.Bookings.ToListAsync()
+        var Bookings = await db.Bookings.ToListAsync(); //getting th list from the database
         return Ok(BookingStore.Bookings); // HTTP 200 OK — Body: JSON array of Booking objects
     }
 
@@ -48,9 +49,9 @@ public class BookingsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<Booking>> GetBookingByIdAsync(Guid id)
     {
-        await Task.Delay(50);
+        var booking = await db.Bookings.FindAsync(id) ;
 
-        var booking = BookingStore.Bookings.FirstOrDefault(b => b.Id == id);
+       //var booking = BookingStore.Bookings.FirstOrDefault(b => b.Id == id);
 
         // Guard clause: if the resource does not exist, say so explicitly.
         // Never return null. Never return a 200 with an empty body.
@@ -76,7 +77,7 @@ public class BookingsController : ControllerBase
         // 1. IDEMPOTENCY GUARD
         // Prevent a duplicate if the client submits the same form twice.
         // (React Strict Mode fires effects twice; users double-click Submit buttons.)
-        bool isDuplicate = BookingStore.Bookings.Any(b =>
+        bool isDuplicate = await db.Bookings.AnyAsync(b =>
             b.Room == request.Room && b.StartTime == request.StartTime);
 
         if (isDuplicate)
@@ -123,7 +124,7 @@ public class BookingsController : ControllerBase
         Guid id,
         [FromBody] CreateBookingRequest request)
     {
-        await Task.Delay(50);
+       var booking = await db.Bookings.FindAsync(id);
 
         var existingBooking = BookingStore.Bookings.FirstOrDefault(b => b.Id == id);
 
@@ -132,15 +133,13 @@ public class BookingsController : ControllerBase
             return NotFound();
         }
 
-        // Records are immutable — you cannot mutate properties directly.
-        // The 'with' expression creates a new copy with the changed fields only.
-        var updatedBooking = existingBooking with
-        {
-            Title     = request.Title,
-            Speaker   = request.Speaker,
-            Room      = request.Room,
-            StartTime = request.StartTime!.Value // nullable because of [Required] on DTO
-        };
+        // Update the existing booking with new values.
+        existingBooking.Title = request.Title;
+        existingBooking.Speaker = request.Speaker;
+        existingBooking.Room = request.Room;
+        existingBooking.StartTime = request.StartTime!.Value; // nullable because of [Required] on DTO
+
+        var updatedBooking = existingBooking;
 
         BookingStore.Bookings.Remove(existingBooking);
         BookingStore.Bookings.Add(updatedBooking);
@@ -163,9 +162,9 @@ public class BookingsController : ControllerBase
    
     public async Task<ActionResult> DeleteBookingAsync(Guid id)
     {
-        await Task.Delay(50);
+       
 
-        var booking = BookingStore.Bookings.FirstOrDefault(b => b.Id == id);
+        var booking = await db.Bookings.FindAsync(id);
 
         if (booking is null)
         {
