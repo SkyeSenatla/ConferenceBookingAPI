@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using API.Data;
 using Microsoft.EntityFrameworkCore;
+// SeedData and BookingDbContext are both in API.Data — no additional using needed.
 
 //════════════════════════════════════════════════════
 // Bootstrap Serilog before the host is built.
@@ -82,6 +83,32 @@ try
     // Nothing can be registered after this line.
     //════════════════════════════════════════════════════
     var app = builder.Build();
+
+    // Week 2 — Apply pending migrations and seed the database.
+    //
+    // WHY create a scope here?
+    //   DbContext is registered as Scoped — one instance per HTTP request.
+    //   Outside of a request (like here at startup) there is no active scope,
+    //   so we create one manually to resolve the DbContext from the DI container.
+    //   The 'using' ensures the scope (and the DbContext inside it) is disposed
+    //   cleanly when this block exits.
+    //
+    // MigrateAsync — equivalent to running 'dotnet ef database update' by hand.
+    //   It applies any migration files that have not yet been recorded in
+    //   __EFMigrationsHistory. Safe to call on every startup: if the schema
+    //   is already up-to-date, it is a no-op.
+    //   NOTE: This is a development convenience. In production CI/CD pipelines,
+    //   migrations are typically applied as a dedicated deployment step before
+    //   the new application version is started.
+    //
+    // SeedAsync — inserts the demo dataset only if the bookings table is empty.
+    //   Safe to call on every startup: it returns immediately if data exists.
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+        await db.Database.MigrateAsync();
+        await SeedData.SeedAsync(db);
+    }
 
     //════════════════════════════════════════════════════
     // PIPELINE — Configure the middleware chain.
