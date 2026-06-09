@@ -5,7 +5,10 @@ namespace API.Repositories;
 
 public interface IBookingRepository
 {
-    Task<IEnumerable<BookingResponse>> GetAllAsync();
+    //Before Pagination
+    //Task<IEnumerable<BookingResponse>> GetAllAsync();\
+    //With Pagination 
+    Task<PagedResponse<BookingResponse>> GetAllAsync( int page, int pageSize); 
     Task<BookingDetailResponse?> GetByIdAsync(Guid id);
     // Returns the tracked domain entity — used by UpdateAsync and DeleteAsync in the service
     // so the Change Tracker can detect mutations and generate the correct SQL.

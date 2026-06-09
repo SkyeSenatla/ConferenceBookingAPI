@@ -8,6 +8,9 @@ using System.Text;
 using API.Data;
 using API.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Asp.Versioning;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 // SeedData and BookingDbContext are both in API.Data — no additional using needed.
 
 //════════════════════════════════════════════════════
@@ -31,6 +34,12 @@ try
     //════════════════════════════════════════════════════
 
     builder.Services.AddControllers();
+    builder.Services.AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion                = new ApiVersion(1);
+        options.AssumeDefaultVersionWhenUnspecified = true; // /api/bookings defaults to v1 — nothing breaks
+        options.ReportApiVersions                = true;   // adds api-supported-versions header to every response
+    }).AddMvc(); // wires versioning into the MVC pipeline so headers and endpoint metadata are applied
     builder.Services.AddOpenApi();
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
@@ -42,9 +51,14 @@ try
     {
         options.AddPolicy("NextJsPolicy", policy =>
         {
-            policy.WithOrigins("http://localhost:3000") // Next.js dev server
-                  .AllowAnyHeader()                     // Allows Authorization, Content-Type, etc.
-                  .AllowAnyMethod();                    // Allows GET, POST, PUT, DELETE, OPTIONS
+            policy
+                .WithOrigins(
+                    "http://localhost:3000",           // Next.js dev server
+                    "https://conference.example.com")  // production — replace with real domain
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials()          // required — JWT is sent as a credential
+                .WithExposedHeaders("X-Total-Count"); // pagination header must be explicitly exposed    
         });
     });
 
@@ -71,6 +85,46 @@ try
 
     // Day 4 — Required for [Authorize(Roles = "...")] attributes to evaluate correctly.
     builder.Services.AddAuthorization();
+
+    builder.Services.AddRateLimiter(options =>
+    {
+        // Global limiter applied to every request — 100 per minute across all endpoints.
+        // Using GlobalLimiter (rather than MapControllers().RequireRateLimiting()) ensures
+        // that endpoint-level [EnableRateLimiting] attributes override correctly: they are
+        // the LAST metadata added, so GetMetadata<T> picks them up over the group policy.
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(_ =>
+            RateLimitPartition.GetFixedWindowLimiter("global", _ =>
+                new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit          = 100,
+                    Window               = TimeSpan.FromMinutes(1),
+                    QueueLimit           = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                }));
+
+        // Tighter named policy for search — full-text queries are expensive.
+        // Applied via [EnableRateLimiting("search")] on the search action.
+        options.AddSlidingWindowLimiter("search", limiter =>
+        {
+            limiter.Window             = TimeSpan.FromMinutes(1);
+            limiter.SegmentsPerWindow  = 6; // checked every 10 seconds
+            limiter.PermitLimit        = 20;
+            limiter.QueueLimit         = 0;
+        });
+
+        options.RejectionStatusCode = 429;
+        options.OnRejected = async (context, cancellationToken) =>
+        {
+            context.HttpContext.Response.StatusCode = 429;
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            {
+                context.HttpContext.Response.Headers.RetryAfter =
+                    ((int)retryAfter.TotalSeconds).ToString();
+            }
+            await context.HttpContext.Response.WriteAsync(
+                "Too many requests. Please try again later.", cancellationToken);
+        };
+    });
 
     // Day 4 — CHANGED: Register AuthService so AuthController can receive it via DI.
     // Previously AuthController built tokens itself with a hardcoded key.
@@ -133,6 +187,7 @@ try
     // handled before the pipeline attempts to validate a Bearer token. Preflight requests
     // carry no token and would otherwise be rejected before CORS headers are written.
     app.UseCors("NextJsPolicy");
+    app.UseRateLimiter();
 
     // CHANGED: Moved UseExceptionHandler above UseAuthentication so that any exception
     // thrown during authentication or further down the pipeline is caught and formatted

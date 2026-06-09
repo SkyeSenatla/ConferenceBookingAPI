@@ -7,9 +7,15 @@ namespace API.Services;
 
 public class BookingService(IBookingRepository bookingRepository, IRoomRepository roomRepository) : IBookingService
 {
+    /* Before Pagination
     public Task<IEnumerable<BookingResponse>> GetAllAsync() =>
-        bookingRepository.GetAllAsync();
+       bookingRepository.GetAllAsync();
+*/
+    //After Pagination
 
+    public Task<PagedResponse<BookingResponse>> GetAllAsync(int page = 1, int
+        pageSize = 20) =>
+        bookingRepository.GetAllAsync(page, pageSize);
     public Task<IEnumerable<BookingResponse>> SearchAsync(BookingSearchQuery query) =>
         bookingRepository.SearchAsync(query);
 
@@ -38,14 +44,14 @@ public class BookingService(IBookingRepository bookingRepository, IRoomRepositor
 
         var booking = new Booking
         {
-            Id             = Guid.NewGuid(),
-            Title          = request.Title,
-            Description    = request.Description,
-            StartTime      = request.StartTime.Value,
-            EndTime        = request.EndTime.Value,
-            Type           = request.Type,
+            Id = Guid.NewGuid(),
+            Title = request.Title,
+            Description = request.Description,
+            StartTime = request.StartTime.Value,
+            EndTime = request.EndTime.Value,
+            Type = request.Type,
             OrganizerEmail = request.OrganizerEmail,
-            RoomId         = request.RoomId
+            RoomId = request.RoomId
         };
 
         await bookingRepository.AddAsync(booking);
@@ -76,13 +82,44 @@ public class BookingService(IBookingRepository bookingRepository, IRoomRepositor
             throw new DuplicateBookingException(
                 room.Name, request.StartTime.Value, request.EndTime.Value);
 
-        booking.Title          = request.Title;
-        booking.Description    = request.Description;
-        booking.StartTime      = request.StartTime.Value;
-        booking.EndTime        = request.EndTime.Value;
-        booking.Type           = request.Type;
+        booking.Title = request.Title;
+        booking.Description = request.Description;
+        booking.StartTime = request.StartTime.Value;
+        booking.EndTime = request.EndTime.Value;
+        booking.Type = request.Type;
         booking.OrganizerEmail = request.OrganizerEmail;
-        booking.RoomId         = request.RoomId;
+        booking.RoomId = request.RoomId;
+
+        await bookingRepository.UpdateAsync(booking);
+
+        return (await bookingRepository.GetByIdAsync(id))!.ToSummary();
+    }
+
+    public async Task<BookingResponse> PatchAsync(Guid id, UpdateBookingRequest request)
+    {
+        var booking = await bookingRepository.GetEntityByIdAsync(id)
+            ?? throw new BookingNotFoundException(id);
+
+        // Only apply fields the client explicitly sent.
+        // Null means "do not touch this field".
+        if (request.Title       is not null) booking.Title       = request.Title;
+        if (request.Description is not null) booking.Description = request.Description;
+        if (request.RoomId      is not null) booking.RoomId      = request.RoomId.Value;
+        if (request.StartTime   is not null) booking.StartTime   = request.StartTime.Value;
+        if (request.EndTime     is not null) booking.EndTime     = request.EndTime.Value;
+        if (request.Type        is not null) booking.Type        = request.Type.Value;
+
+        // Re-validate only if the times were touched.
+        if (request.StartTime is not null || request.EndTime is not null)
+        {
+            if (booking.EndTime <= booking.StartTime)
+                throw new InvalidBookingException("End time must be after start time.");
+
+            var hasConflict = await bookingRepository.HasConflictAsync(
+                booking.RoomId, booking.StartTime, booking.EndTime, excludeBookingId: id);
+            if (hasConflict)
+                throw new DuplicateBookingException(booking.RoomId.ToString(), booking.StartTime, booking.EndTime);
+        }
 
         await bookingRepository.UpdateAsync(booking);
 

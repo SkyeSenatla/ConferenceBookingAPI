@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Asp.Versioning;
 using API.DTOs;
 using API.Models;
 using API.Services;
@@ -13,7 +15,9 @@ namespace API.Controllers;
 //   Admin             — full access, including delete
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion(1)]
+[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/[controller]")] // backward-compatible — GET /api/bookings treated as v1 by AssumeDefaultVersionWhenUnspecified
 public class BookingsController(IBookingService bookingService) : ControllerBase
 {
     // ── IActionResult vs ActionResult<T> comparison (teaching reference) ──────
@@ -27,30 +31,54 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
 
     // PATTERN B: ActionResult<T> — OpenAPI knows the exact response shape. Use this everywhere.
 
-    // ── GET /api/bookings ─────────────────────────────────────────────────────
+    // ── GET /api/v1/bookings ──────────────────────────────────────────────────
     // Anonymous — the conference schedule is public. No token required.
+    // Returns a pagination envelope; defaults to page 1, 20 items per page.
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<BookingResponse>>> GetBookingsAsync() =>
-        Ok(await bookingService.GetAllAsync());
+    public async Task<ActionResult<PagedResponse<BookingResponse>>> GetBookingsAsync(
+        [FromQuery] int page     = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await bookingService.GetAllAsync(page, pageSize);
+        Response.Headers["X-Total-Count"] = result.TotalCount.ToString();
+        return Ok(result);
+    }
 
-    // ── GET /api/bookings/search ──────────────────────────────────────────────
+    // ── GET /api/v1/bookings/search ───────────────────────────────────────────
     // Optional filters for the receptionist's schedule view.
+    // Tighter rate limit (20/min sliding window) because full-text queries are expensive.
     [HttpGet("search")]
+    [EnableRateLimiting("search")]
     public async Task<ActionResult<IEnumerable<BookingResponse>>> SearchBookingsAsync(
         [FromQuery] string?      roomName,
         [FromQuery] BookingType? type,
         [FromQuery] DateTime?    from,
         [FromQuery] DateTime?    to,
-        [FromQuery] string?      q) =>
-        Ok(await bookingService.SearchAsync(new BookingSearchQuery(roomName, type, from, to, q)));
+        [FromQuery] string?      q,
+        [FromQuery] string?      sort,
+        [FromQuery] string?      dir) =>
+        Ok(await bookingService.SearchAsync(new BookingSearchQuery(roomName, type, from, to, q, sort, dir)));
 
-    // ── GET /api/bookings/{id} ────────────────────────────────────────────────
+    // ── GET /api/v1/bookings/{id} ─────────────────────────────────────────────
     // Returns full booking detail including room equipment and all attendees.
+    // Includes an ETag fingerprint so clients can skip re-fetching unchanged data.
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<BookingDetailResponse>> GetBookingByIdAsync(Guid id) =>
-        Ok(await bookingService.GetByIdAsync(id));
+    public async Task<IActionResult> GetBookingByIdAsync(Guid id)
+    {
+        var booking = await bookingService.GetByIdAsync(id);
 
-    // ── POST /api/bookings ────────────────────────────────────────────────────
+        // Fingerprint from the fields most likely to change.
+        // If times or title change, the ETag changes and the client re-fetches.
+        var etag = $"\"{booking.Id}-{booking.StartTime.Ticks}-{booking.EndTime.Ticks}\"";
+
+        if (Request.Headers.IfNoneMatch == etag)
+            return StatusCode(StatusCodes.Status304NotModified);
+
+        Response.Headers.ETag = etag;
+        return Ok(booking);
+    }
+
+    // ── POST /api/v1/bookings ─────────────────────────────────────────────────
     // Employees, Receptionists, FacilitiesManagers, and Admins can create bookings.
     [Authorize(Roles = "Employee,Receptionist,FacilitiesManager,Admin")]
     [HttpPost]
@@ -61,7 +89,8 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
         return CreatedAtAction(nameof(GetBookingByIdAsync), new { id = response.Id }, response);
     }
 
-    // ── PUT /api/bookings/{id} ────────────────────────────────────────────────
+    // ── PUT /api/v1/bookings/{id} ─────────────────────────────────────────────
+    // Full replacement — all fields required.
     // Receptionists update on behalf of attendees; FacilitiesManagers reschedule maintenance.
     [Authorize(Roles = "Receptionist,FacilitiesManager,Admin")]
     [HttpPut("{id:guid}")]
@@ -70,7 +99,17 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
         [FromBody] CreateBookingRequest request) =>
         Ok(await bookingService.UpdateAsync(id, request));
 
-    // ── DELETE /api/bookings/{id} ─────────────────────────────────────────────
+    // ── PATCH /api/v1/bookings/{id} ───────────────────────────────────────────
+    // Partial update — only fields present in the request body are changed.
+    // Null fields are left untouched in the database.
+    [Authorize(Roles = "Receptionist,FacilitiesManager,Admin")]
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<BookingResponse>> PatchBookingAsync(
+        Guid id,
+        [FromBody] UpdateBookingRequest request) =>
+        Ok(await bookingService.PatchAsync(id, request));
+
+    // ── DELETE /api/v1/bookings/{id} ──────────────────────────────────────────
     // Admin only — deletion is irreversible.
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id:guid}")]

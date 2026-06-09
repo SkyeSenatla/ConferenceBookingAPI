@@ -6,26 +6,59 @@ namespace API.Repositories;
 
 public class BookingRepository(BookingDbContext db) : IBookingRepository
 {
+    /*
+     Without Pagination
     public async Task<IEnumerable<BookingResponse>> GetAllAsync() =>
 
-    await db.Bookings
-         .AsNoTracking()
-         .Select(b => new BookingResponse(
-             b.Id,
-             b.Title,
-             b.Type.ToString(),
-             b.Room.Name,
-             b.Room.Floor,
-             b.StartTime,
-             b.EndTime,
-             b.OrganizerEmail,
-             b.Attendees.Count,
-             b.Attendees
-                 .Where(ba => ba.Attendee.IsExternal)
-                 .Select(ba => ba.Attendee.Name)
-                 .ToList()))
-         .ToListAsync();
+   await db.Bookings
+        .AsNoTracking()
+        .Select(b => new BookingResponse(
+            b.Id,
+            b.Title,
+            b.Type.ToString(),
+            b.Room.Name,
+            b.Room.Floor,
+            b.StartTime,
+            b.EndTime,
+            b.OrganizerEmail,
+            b.Attendees.Count,
+            b.Attendees
+                .Where(ba => ba.Attendee.IsExternal)
+                .Select(ba => ba.Attendee.Name)
+                .ToList()))
+        .ToListAsync();
+*/
+    // GetAllAsync With Pagination
+    public async Task<PagedResponse<BookingResponse>> GetAllAsync(int page, int pageSize)
+    {
+        var query = db.Bookings.AsNoTracking()
+        .OrderBy(b => b.StartTime);
 
+        var totalCount = await query.CountAsync();
+
+        var data = await query.Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(b => new BookingResponse(
+          b.Id, b.Title, b.Type.ToString(),
+            b.Room.Name, b.Room.Floor,
+            b.StartTime, b.EndTime, b.OrganizerEmail,
+            b.Attendees.Count,
+            b.Attendees
+                .Where(ba => ba.Attendee.IsExternal)
+                .Select(ba => ba.Attendee.Name)
+                .ToList()))
+        .ToListAsync();
+
+      return new PagedResponse<BookingResponse>(
+       Data: data,
+       Page: page,
+       PageSize: pageSize,
+       TotalCount: totalCount,
+       TotalPages: (int)Math.Ceiling(totalCount / (double)pageSize),
+       HasNextPage: page * pageSize < totalCount,
+       HasPreviousPage: page > 1);
+
+    }
     public async Task<BookingDetailResponse?> GetByIdAsync(Guid id)
     {
         var booking = await db.Bookings
@@ -106,7 +139,8 @@ public class BookingRepository(BookingDbContext db) : IBookingRepository
         if (query.To.HasValue)
             q = q.Where(b => b.EndTime <= query.To.Value);
 
-        return await q
+       /*  Before sort parameters on Search
+       return await q
             .OrderBy(b => b.StartTime)
             .Select(b => new BookingResponse(
                 b.Id, b.Title, b.Type.ToString(),
@@ -117,7 +151,34 @@ public class BookingRepository(BookingDbContext db) : IBookingRepository
                     .Where(ba => ba.Attendee.IsExternal)
                     .Select(ba => ba.Attendee.Name)
                     .ToList()))
-            .ToListAsync();
+            .ToListAsync(); */
+            
+            // After: 
+        var descending = query.Dir?.ToLower() == "desc"; 
+        
+        q = query.Sort?.ToLower() switch 
+        { 
+            "title"    => descending ? q.OrderByDescending(b => b.Title)     : q.OrderBy(b => b.Title), 
+            "roomname" => descending ? q.OrderByDescending(b => b.Room.Name) : 
+        q.OrderBy(b => b.Room.Name), 
+            "endtime"  => descending ? q.OrderByDescending(b => b.EndTime)   : q.OrderBy(b => 
+        b.EndTime), 
+            _          => descending ? q.OrderByDescending(b => b.StartTime) : q.OrderBy(b => 
+        b.StartTime), 
+        }; 
+ 
+        return await q 
+            .Select(b => new BookingResponse( 
+                b.Id, b.Title, b.Type.ToString(), 
+                b.Room.Name, b.Room.Floor, 
+                b.StartTime, b.EndTime, b.OrganizerEmail, 
+                b.Attendees.Count, 
+                b.Attendees 
+                    .Where(ba => ba.Attendee.IsExternal) 
+                    .Select(ba => ba.Attendee.Name) 
+                    .ToList())) 
+            .ToListAsync(); 
+
     }
 
     // Full-text search across title and description using PostgreSQL's native engine.
