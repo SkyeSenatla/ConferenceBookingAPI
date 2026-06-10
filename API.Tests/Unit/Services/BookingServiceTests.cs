@@ -4,7 +4,6 @@ using API.Repositories;
 using API.Services;
 using API.Exceptions;
 using NSubstitute;
-using System.Runtime.CompilerServices;
 
 namespace API.Tests.Unit.Services;
 
@@ -54,9 +53,6 @@ public class BookingServiceTests
         await Assert.ThrowsAnyAsync<DuplicateBookingException>(act);
         await _repository.DidNotReceive().AddAsync(Arg.Any<Booking>());
 
-
-
-
     }
     [Fact]
     public async Task CreateAsync_WhenEndTimeBeforeStart_ThrowsInvalidBookingException()
@@ -93,9 +89,8 @@ public class BookingServiceTests
 
     }
 
-    
-     /*[Fact]
 
+    [Fact]
     public async Task PatchAsync_WhenOnlyTitleChanged_DoesNotCallHasConflictAsync()
     {
         // Arrange 
@@ -111,15 +106,27 @@ public class BookingServiceTests
             OrganizerEmail = "organiser@example.com"
         };
 
+        // 1. Mock the internal entity fetch (Returns a Booking Model)
         _repository.GetEntityByIdAsync(bookingId).Returns(existingBooking);
 
-        // GetByIdAsync is called at the end of PatchAsync to return the updated response 
+        // 2. Mock the final fetch (Must return a BookingDetailResponse DTO)
+        var updatedResponse = new BookingDetailResponse(
+            bookingId,
+            "Updated Title",
+            null,
+            BookingType.Meeting.ToString(),
+            "Boardroom",
+            "1",
+            10,
+            existingBooking.StartTime,
+            existingBooking.EndTime,
+            "organiser@example.com",
+            [],
+            []);
 
-      Fix this error. 
-       _repository.GetByIdAsync(bookingId).Returns(new BookingDetailResponse(
-            bookingId, "Updated Title", null, "Meeting", "Boardroom", 1, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(2),"organiser@example.com", 10, [], [])); 
+        _repository.GetByIdAsync(bookingId).Returns(updatedResponse);
 
-       ?/ var request = new UpdateBookingRequest(
+        var request = new UpdateBookingRequest(
             Title: "Updated Title",        // only this field is non-null 
             Description: null,
             RoomId: null,
@@ -135,11 +142,56 @@ public class BookingServiceTests
             Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<Guid?>());
     }
 
-    [Fact] *
-    /*
-    Home work for trainees.
+    [Fact]
+
+    //Home work for trainees.
     public async Task PatchAsync_WhenStartTimeChanged_CallsHasConflicAsync()
     {
-        
-    } */
+        // Arrange
+        var now = DateTime.UtcNow;
+        var bookingId = Guid.NewGuid();
+        var existingBooking = new Booking
+        {
+            Id = bookingId,
+            Title = "Original Title",
+            RoomId = Guid.NewGuid(),
+            StartTime = now.AddHours(1),
+            EndTime = now.AddHours(2),
+            Type = BookingType.Meeting,
+            OrganizerEmail = "organiser@example.com"
+        };
+
+        _repository.GetEntityByIdAsync(bookingId).Returns(existingBooking);
+
+        var updatedResponse = new BookingDetailResponse(
+            bookingId,
+            "Original Title",
+            null,
+            BookingType.Meeting.ToString(),
+            "Boardroom",
+            "1",
+            10,
+            now.AddMinutes(90),
+            now.AddHours(2),
+            "organiser@example.com",
+            [],
+            []);
+
+        _repository.GetByIdAsync(bookingId).Returns(updatedResponse);
+
+        var request = new UpdateBookingRequest(
+            Title: null,
+            Description: null,
+            RoomId: null,
+            StartTime: now.AddMinutes(90),  // only this field is non-null; 90 min < 2 h so EndTime check passes
+            EndTime: null,
+            Type: null);
+
+        // Act
+        await _sut.PatchAsync(bookingId, request);
+
+        // Assert — start time was touched, so conflict check must run
+        await _repository.Received(1).HasConflictAsync(
+            Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<Guid?>());
+    }
 }

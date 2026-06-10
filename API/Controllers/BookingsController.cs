@@ -35,8 +35,7 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     // Anonymous — the conference schedule is public. No token required.
     // Returns a pagination envelope; defaults to page 1, 20 items per page.
     [HttpGet]
-    public async Task<ActionResult<PagedResponse<BookingResponse>>> GetBookingsAsync(
-        [FromQuery] int page     = 1,
+    public async Task<ActionResult<PagedResponse<BookingResponse>>> GetBookingsAsync( [FromQuery] int page     = 1,
         [FromQuery] int pageSize = 20)
     {
         var result = await bookingService.GetAllAsync(page, pageSize);

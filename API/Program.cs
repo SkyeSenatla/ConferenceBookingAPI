@@ -205,6 +205,8 @@ try
     app.MapControllers();
 
     app.Run();
+
+
 }
 catch (Exception ex)
 {
@@ -213,4 +215,8 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+public  partial class Program
+{
+    
 }
