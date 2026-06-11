@@ -1,0 +1,38 @@
+﻿name: CI
+
+# Run on every pull request targeting main, and on every push to main.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1 — Check out the code
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Step 2 — Install the .NET SDK
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Step 3 — Restore NuGet packages
+      - name: Restore
+        run: dotnet restore
+
+      # Step 4 — Build (fail fast — no point running tests if it does not compile)
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # Step 5 — Run all tests
+      # Docker is pre-installed on ubuntu-latest.
+      # TestContainers detects it automatically — no extra setup needed.
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
