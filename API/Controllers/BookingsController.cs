@@ -35,7 +35,13 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     // Anonymous — the conference schedule is public. No token required.
     // Returns a pagination envelope; defaults to page 1, 20 items per page.
     [HttpGet]
-    public async Task<ActionResult<PagedResponse<BookingResponse>>> GetBookingsAsync( [FromQuery] int page     = 1,
+    [EndpointSummary("List all bookings")]
+    [EndpointDescription(
+        "Returns a paginated list of bookings ordered by start time. " +
+        "The X-Total-Count response header contains the total number of bookings " +
+        "matching the current filter, regardless of page size.")]
+    public async Task<ActionResult<PagedResponse<BookingResponse>>> GetBookingsAsync(
+        [FromQuery] int page     = 1,
         [FromQuery] int pageSize = 20)
     {
         var result = await bookingService.GetAllAsync(page, pageSize);
@@ -48,6 +54,11 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     // Tighter rate limit (20/min sliding window) because full-text queries are expensive.
     [HttpGet("search")]
     [EnableRateLimiting("search")]
+    [EndpointSummary("Search bookings")]
+    [EndpointDescription(
+        "Filter bookings by room, type, date range, or full-text query. " +
+        "When Q is provided, PostgreSQL full-text search is used with GIN index support. " +
+        "Rate limited to 20 requests per minute — full-text queries are expensive.")]
     public async Task<ActionResult<IEnumerable<BookingResponse>>> SearchBookingsAsync(
         [FromQuery] string?      roomName,
         [FromQuery] BookingType? type,
@@ -81,6 +92,10 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     // Employees, Receptionists, FacilitiesManagers, and Admins can create bookings.
     [Authorize(Roles = "Employee,Receptionist,FacilitiesManager,Admin")]
     [HttpPost]
+    [EndpointSummary("Create a booking")]
+    [EndpointDescription(
+        "Creates a new booking. Validates that the room is available for the requested time slot. " +
+        "Requires a valid Bearer token with Employee, Receptionist, FacilitiesManager, or Admin role.")]
     public async Task<ActionResult<BookingResponse>> CreateBookingAsync(
         [FromBody] CreateBookingRequest request)
     {

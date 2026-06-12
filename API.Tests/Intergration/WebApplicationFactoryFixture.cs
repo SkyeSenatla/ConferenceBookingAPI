@@ -7,9 +7,11 @@ using Testcontainers.PostgreSql;
 
 namespace API.Tests.Intergration;
 
-// Starts the application once for all tests in a class.
-// IClassFixture<T> is the xUnit mechanism for shared, expensive setup.
-// IAsyncLifetime gives us async Init/Dispose hooks to start/stop the container.
+/// <summary>
+///Starts the application once for all tests in a class. 
+///ClassFixture<T> is the xUnit mechanism for shared, expensive setup.
+/// IAsyncLifetime gives us async Init/Dispose hooks to start/stop the container.
+/// </summary>
 public class WebApplicationFactoryFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()

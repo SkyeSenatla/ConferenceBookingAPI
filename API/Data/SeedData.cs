@@ -20,10 +20,10 @@ public static class SeedData
 {
     public static async Task SeedAsync(BookingDbContext db)
     {
-        // Guard: skip seeding if the rooms table already has rows.
-        // This means the entire dataset is treated as an atomic unit —
-        // either everything is present or nothing has been seeded yet.
-        if (await db.Rooms.AnyAsync())
+        // Guard: skip seeding if bookings already exist.
+        // Checking bookings (not rooms) ensures a room created by a test fixture
+        // does not falsely indicate the full seed dataset is present.
+        if (await db.Bookings.AnyAsync())
             return;
 
         // ── Rooms ────────────────────────────────────────────────────────────

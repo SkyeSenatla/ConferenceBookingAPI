@@ -68,6 +68,7 @@ public class BookingRepositoryTests(PostgreSqlContainerFixture fixture) : IClass
     public async Task GetAllAsync_ResultsAreOrderedByStartTimeAscending()
     {
         // Arrange
+        
         await using var context = CreateContext();
         await SeedData.SeedAsync(context);
         var repository = new BookingRepository(context);

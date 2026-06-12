@@ -1,5 +1,3 @@
 <Solution>
-  <Folder Name="/API.Tests/">
-    <Project Path="API.Tests/API.tests.csproj" />
-  </Folder>
+  <Folder Name="/API.Tests/" />
 </Solution>

@@ -7,11 +7,13 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using API.Data;
 using API.Infrastructure;
+using API.Infrastructure.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Asp.Versioning;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
-// SeedData and BookingDbContext are both in API.Data — no additional using needed.
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 //════════════════════════════════════════════════════
 // Bootstrap Serilog before the host is built.
@@ -40,7 +42,11 @@ try
         options.AssumeDefaultVersionWhenUnspecified = true; // /api/bookings defaults to v1 — nothing breaks
         options.ReportApiVersions                = true;   // adds api-supported-versions header to every response
     }).AddMvc(); // wires versioning into the MVC pipeline so headers and endpoint metadata are applied
-    builder.Services.AddOpenApi();
+    builder.Services.AddScoped<ConferenceBookingDocumentTransformer>();
+    builder.Services.AddOpenApi(options =>
+    {
+        options.AddDocumentTransformer<ConferenceBookingDocumentTransformer>();
+    });
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddProblemDetails();
 
@@ -138,6 +144,23 @@ try
         .AddBookingFeature()
         .AddRoomFeature();
 
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes
+            .Append("application/json");
+    });
+
+    builder.Services.AddHealthChecks()
+        .AddDbContextCheck<BookingDbContext>(
+            name: "database",
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+            tags: ["ready"]);
+
+    builder.Services.AddHostedService<BookingArchiveService>();
+
     builder.Host.UseDefaultServiceProvider(options =>
     {
         options.ValidateScopes  = true;
@@ -182,6 +205,7 @@ try
     //════════════════════════════════════════════════════
 
     app.UseSerilogRequestLogging();
+    app.UseResponseCompression();
 
     // Day 4 — CORS must sit before auth so that browser preflight OPTIONS requests are
     // handled before the pipeline attempts to validate a Bearer token. Preflight requests
@@ -203,6 +227,16 @@ try
     app.MapOpenApi();
     app.MapScalarApiReference();
     app.MapControllers();
+
+    app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready")
+    });
 
     app.Run();
 
