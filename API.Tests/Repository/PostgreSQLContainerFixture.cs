@@ -16,9 +16,12 @@ public class PostgreSqlContainerFixture : IAsyncLifetime
     .WithUsername("testuser")
     .WithPassword("testpass")
     .Build();
+    
     // Expose the connection string so the DbContext can connect to this container. 
     public string ConnectionString => _container.GetConnectionString();
     public async Task InitializeAsync() => await _container.StartAsync();
     public async Task DisposeAsync() => await _container.DisposeAsync();
+
+    
 
 }
