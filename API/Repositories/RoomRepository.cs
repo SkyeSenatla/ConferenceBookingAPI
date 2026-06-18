@@ -13,4 +13,8 @@ public class RoomRepository(BookingDbContext db) : IRoomRepository
         return room; 
 
     }
+     public async Task<IEnumerable<Room>> GetAllAsync()
+    {
+        return await db.Rooms.OrderBy(r => r.Floor).ThenBy(r => r.Name).ToListAsync();
+    }
 }

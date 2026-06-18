@@ -29,3 +29,11 @@ export interface BookingResponse {
   attendeeCount: number;
   externalAttendees: string[];
 }
+//addd room Response interface
+export interface RoomResponse { 
+  id: string;
+  name: string;
+  floor: string;
+  capacity: number;
+  isAvailable: boolean;
+}

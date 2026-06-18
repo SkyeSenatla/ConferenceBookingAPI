@@ -8,6 +8,7 @@
 
 # Local development config — contains secrets, never commit
 appsettings.Development.json
+.env.local
 
 # User-specific files
 *.rsuser

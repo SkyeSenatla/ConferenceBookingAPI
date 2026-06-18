@@ -5,12 +5,13 @@ using API.Exceptions;
 namespace API.Services;  
 public class RoomService(IRoomRepository roomRepository) : IRoomService
 {
-    /*public async Task<IEnumerable<RoomResponse>> GetAllAsync()
+    public async Task<IEnumerable<RoomResponse>> GetAllAsync()
     {
         // Assuming your repository handles the projection to DTOs for list reads,
         // exactly like BookingRepository.GetAllAsync() does.
-        return await roomRepository.GetAllAsync();
-    } */
+        var rooms = await roomRepository.GetAllAsync();
+        return rooms.Select(r => new RoomResponse(r.Id, r.Name, r.Floor, r.Capacity, r.IsAvailable));
+    } 
 
     public async Task<RoomResponse> GetByIdAsync(Guid id)
     {
