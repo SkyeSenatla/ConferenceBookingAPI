@@ -5,6 +5,7 @@ import { RoomList } from "@/components/RoomList";
 import { BookingList } from "@/components/BookingList";
 import { UserList } from "@/components/UserList";
 import { RoomListSkeleton } from "@/components/RoomListSkeleton";
+import {BookingForm} from "@/components/BookingForm";
 import {
   fetchRooms,
   fetchBookings,
@@ -175,7 +176,12 @@ export default function Home() {
                 </p>
               </div>
             )}
-
+              {/* ── BookingForm — NEW ── */} 
+              {selectedRoom && !roomsPending && !roomsError && ( 
+                <div className="mb-6"> 
+                  <BookingForm roomId={selectedRoom.id} roomName={selectedRoom.name} /> 
+                </div> 
+              )}
             {roomsPending && <RoomListSkeleton />}
 
             {roomsError && (

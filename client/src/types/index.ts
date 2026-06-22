@@ -46,3 +46,15 @@ export interface UserResponse {
   username: string;
   role: string;
 }
+// Mirrors CreateBookingRequest.cs — sent as the body of POST /api/bookings. 
+// Guid → string, DateTime? → string (ISO 8601 enforced by Zod). 
+export interface CreateBookingRequest { 
+title: string; 
+roomId: string; 
+startTime: string; 
+endTime: string; 
+type: BookingType; 
+organizerEmail: string; 
+description?: string; 
+}
+

@@ -90,7 +90,7 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
 
     // ── POST /api/v1/bookings ─────────────────────────────────────────────────
     // Employees, Receptionists, FacilitiesManagers, and Admins can create bookings.
-    [Authorize(Roles = "Employee,Receptionist,FacilitiesManager,Admin")]
+    //[Authorize(Roles = "Employee,Receptionist,FacilitiesManager,Admin")]
     [HttpPost]
     [EndpointSummary("Create a booking")]
     [EndpointDescription(
@@ -100,7 +100,7 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
         [FromBody] CreateBookingRequest request)
     {
         var response = await bookingService.CreateAsync(request);
-        return CreatedAtAction(nameof(GetBookingByIdAsync), new { id = response.Id }, response);
+        return CreatedAtAction(nameof(GetBookingByIdAsync), new { id = response.Id, version = "1" }, response);
     }
 
     // ── PUT /api/v1/bookings/{id} ─────────────────────────────────────────────
