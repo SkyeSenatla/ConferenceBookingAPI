@@ -28,6 +28,9 @@ public class AuthService : IAuthService
         _config = config;
     }
 
+    public IEnumerable<UserResponse> GetAllUsers() =>
+        _users.Select(u => new UserResponse(u.Username, u.Role));
+
     public LoginResponse? Login(LoginRequest request)
     {
         // Find a matching user by username and password.

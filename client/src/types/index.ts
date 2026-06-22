@@ -29,11 +29,20 @@ export interface BookingResponse {
   attendeeCount: number;
   externalAttendees: string[];
 }
-//addd room Response interface
-export interface RoomResponse { 
-  id: string;
-  name: string;
-  floor: string;
-  capacity: number;
-  isAvailable: boolean;
+
+// Mirrors PagedResponse<T>.cs — the pagination envelope returned by GET /api/bookings.
+export interface PagedResponse<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+// Mirrors UserResponse.cs — returned by GET /api/users (Admin only).
+export interface UserResponse {
+  username: string;
+  role: string;
 }
