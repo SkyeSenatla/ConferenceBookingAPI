@@ -4,7 +4,7 @@ import { RoomResponse } from "@/types";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function getRooms(): Promise<RoomResponse[]> {
-  const res = await fetch(`${API_URL}/api/rooms`, { cache: "no-store" });
+  const res = await fetch(`${API_URL}/api/rooms`, { next: {tags: ["rooms"]} });
   if (!res.ok) throw new Error(`Failed to fetch rooms: ${res.status}`);
   return res.json();
 }

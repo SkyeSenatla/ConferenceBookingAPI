@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { RoomResponse } from "@/types";
 import { BookingForm } from "@/components/BookingForm";
+import { QuickBookingForm } from "@/components/QuickBookingForm"; 
+
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -36,11 +39,10 @@ export default async function RoomDetailPage({
               {room.name}
             </h1>
             <span
-              className={`rounded px-2 py-1 text-sm font-medium ${
-                room.isAvailable
+              className={`rounded px-2 py-1 text-sm font-medium ${room.isAvailable
                   ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                   : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-              }`}
+                }`}
             >
               {room.isAvailable ? "Available" : "Unavailable"}
             </span>
@@ -51,7 +53,22 @@ export default async function RoomDetailPage({
         </div>
 
         {room.isAvailable ? (
-          <BookingForm roomId={room.id} roomName={room.name} />
+          <div className="space-y-8">
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 
+                dark:text-gray-500">
+                Full booking form — React Query
+              </p>
+              <BookingForm roomId={room.id} roomName={room.name} />
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 
+dark:text-gray-500">
+                Quick book — Server Action
+              </p>
+              <QuickBookingForm roomId={room.id} />
+            </div>
+          </div>
         ) : (
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
             <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">

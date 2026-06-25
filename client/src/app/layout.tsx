@@ -4,6 +4,9 @@ import "./globals.css";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Providers } from "./providers";
+import { auth, signOut } from "@/auth";
+
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -16,11 +19,12 @@ export const metadata: Metadata = {
   title: "ConferenceHub",
   description: "Conference room booking",
 };
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html
       lang="en"
@@ -36,19 +40,24 @@ export default function RootLayout({
               ConferenceHub
             </Link>
             <nav className="flex items-center gap-4">
-              <Link
-                href="/rooms"
-                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-              >
-                Rooms
-              </Link>
-              <Link
-                href="/bookings"
-                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-              >
-                Bookings
-              </Link>
+              <Link href="/rooms">Rooms</Link>
+              {session && <Link href="/bookings">Bookings</Link>}
               <ThemeToggle />
+              {session ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">
+                    {session.user.name}
+                    <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+                      {session.user.role}
+                    </span>
+                  </span>
+                  <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+                    <button type="submit">Sign Out</button>
+                  </form>
+                </div>
+              ) : (
+                <Link href="/login">Sign In</Link>
+              )}
             </nav>
           </div>
         </header>

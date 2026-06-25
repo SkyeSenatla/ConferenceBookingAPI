@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using API.DTOs;
 using API.Services;
@@ -41,7 +40,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [Authorize]
     public IActionResult GetCurrentUser()
     {
-        var username = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var username = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var role     = User.FindFirstValue(ClaimTypes.Role);
 
         return Ok(new { username, role });

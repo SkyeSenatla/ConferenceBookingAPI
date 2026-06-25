@@ -1,85 +1,68 @@
-import { BookingResponse, PagedResponse } from "@/types";
+import { Suspense } from "react";
+import { BookingTable } from "@/components/BookingTable";
 
+import { auth } from "@/auth";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-async function getBookings(): Promise<PagedResponse<BookingResponse>> {
-  const res = await fetch(`${API_URL}/api/bookings?page=1&pageSize=20`, {
-    cache: "no-store",
+async function getRoomCount(): Promise<number> {
+  const res = await fetch(`${API_URL}/api/rooms`, {
+    next: { tags: ["rooms"] },
   });
-  if (!res.ok) throw new Error(`Failed to fetch bookings: ${res.status}`);
-  return res.json();
+  if (!res.ok) return 0;
+  const rooms = await res.json();
+  return rooms.length;
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function BookingTableSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-10 animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+        />
+      ))}
+    </div>
+  );
 }
 
 export default async function BookingsPage() {
-  const { data: bookings, totalCount } = await getBookings();
+  // Only the fast fetch runs here. The page renders as soon as this resolves. 
+  const [roomCount, session] = await Promise.all([getRoomCount(), auth()]);
 
   return (
     <>
       <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
         Bookings
       </h1>
-      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        {totalCount} total bookings
-      </p>
-
-      {bookings.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          No bookings found.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                {["Title", "Room", "Start", "End", "Organiser"].map((h) => (
-                  <th
-                    key={h}
-                    className="py-2 pr-4 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((b) => (
-                <tr
-                  key={b.id}
-                  className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800"
-                >
-                  <td className="py-2 pr-4 font-medium text-gray-900 dark:text-gray-100">
-                    {b.title}
-                  </td>
-                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
-                    {b.roomName}
-                    <span className="ml-1 text-xs text-gray-400">
-                      ({b.floor})
-                    </span>
-                  </td>
-                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
-                    {formatDateTime(b.startTime)}
-                  </td>
-                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
-                    {formatDateTime(b.endTime)}
-                  </td>
-                  <td className="py-2 text-gray-600 dark:text-gray-400">
-                    {b.organizerEmail}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      
+        {session && (
+          <p className="mb-1 text-sm text-gray-500">
+            Signed in as{" "}
+            <span className="font-medium">{session.user.name}</span>
+            <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs">
+              {session.user.role}
+            </span>
+          </p>
+        )}
+        <div className="mb-6 flex gap-6">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="font-semibold text-gray-900 dark:text-gray-100">
+              {roomCount}
+            </span>{" "}
+            rooms in the system
+          </p>
         </div>
-      )}
-    </>
-  );
-}
+
+        {/* 
+        The Suspense boundary is the key line. 
+        Everything above renders immediately. 
+        BookingTable is async — it fetches its own data. 
+        While it loads, the skeleton is shown. 
+        When it resolves, Next.js streams the real table in to replace it. 
+      */}
+        <Suspense fallback={<BookingTableSkeleton />}>
+          <BookingTable />
+        </Suspense>
+      </>
+        );
+} 
