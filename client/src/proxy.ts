@@ -9,6 +9,7 @@ export default auth((req) => {
   }
   return NextResponse.next();
 });
+
 export const config = {
   matcher: [
     // Run on all paths except Next.js internals and Auth.js own routes.
