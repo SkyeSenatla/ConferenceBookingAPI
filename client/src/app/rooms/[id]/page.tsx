@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { RoomResponse } from "@/types";
-import { BookingForm } from "@/components/BookingForm";
+import { BookingWizard } from "@/components/BookingWizard";
 import { QuickBookingForm } from "@/components/QuickBookingForm"; 
 
 
@@ -18,9 +18,10 @@ async function getRoom(id: string): Promise<RoomResponse | null> {
 export default async function RoomDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const room = await getRoom(params.id);
+  const { id } = await params;
+  const room = await getRoom(id);
   if (!room) notFound();
 
   return (
@@ -59,7 +60,7 @@ export default async function RoomDetailPage({
                 dark:text-gray-500">
                 Full booking form — React Query
               </p>
-              <BookingForm roomId={room.id} roomName={room.name} />
+              <BookingWizard roomId={room.id} roomName={room.name} />
             </div>
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 

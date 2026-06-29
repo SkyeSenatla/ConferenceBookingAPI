@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Providers } from "./providers";
 import { auth, signOut } from "@/auth";
+import {Toaster} from "sonner";
+
 
 
 const geistSans = Geist({
@@ -62,6 +64,7 @@ export default async function RootLayout({
           </div>
         </header>
         <Providers>{children}</Providers>
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

@@ -11,4 +11,11 @@ public class RoomsController(IRoomService roomService) : ControllerBase
         var rooms = await roomService.GetAllAsync();
         return Ok(rooms);
     }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var room = await roomService.GetByIdAsync(id);
+        return Ok(room);
+    }
 }
