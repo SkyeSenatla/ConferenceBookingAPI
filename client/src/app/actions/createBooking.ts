@@ -49,6 +49,6 @@ export async function quickCreateBooking(
     // This is where Demo 1 and Demo 4 connect. 
     // The rooms fetch was tagged "rooms". Calling revalidateTag here clears it. 
     // The next visitor to /rooms will get fresh availability data from the API. 
-    revalidateTag("rooms");
+    revalidateTag("rooms", "max");
     return { status: "success", message: "Room booked successfully!" };
 } 

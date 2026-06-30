@@ -79,14 +79,18 @@ export function BookingForm({ roomId, roomName }: BookingFormProps) {
 
   // handleSubmit runs Zod first. onSubmit only fires when ALL fields are valid. 
   const onSubmit = async (data: BookingFormData) => {
-    await createBookingMutation.mutateAsync({
-      ...data,
-      roomId,
-      // datetime-local gives "2025-06-19T09:00" — convert to full ISO so the 
-      // backend receives an unambiguous UTC timestamp. 
-      startTime: new Date(data.startTime).toISOString(),
-      endTime: new Date(data.endTime).toISOString(),
-    });
+    try {
+      await createBookingMutation.mutateAsync({
+        ...data,
+        roomId,
+        // datetime-local gives "2025-06-19T09:00" — convert to full ISO so the
+        // backend receives an unambiguous UTC timestamp.
+        startTime: new Date(data.startTime).toISOString(),
+        endTime: new Date(data.endTime).toISOString(),
+      });
+    } catch {
+      // Error is surfaced via the mutation's onError callback (toast)
+    }
   };
   // ── Base input class reused across all fields ──────────────────────────── 
   const inputBase =
