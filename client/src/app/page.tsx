@@ -1,8 +1,18 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
-  return (    <main className="min-h-screen bg-gray-50 p-8 dark:bg-gray-900">
+  return (
+    <main className="min-h-screen bg-gray-50 p-8 dark:bg-gray-900">
       <div className="mx-auto max-w-5xl">
+        <Image
+          src="/hero.svg"
+          alt="A	modern	conference	room	ready	for	your	next	meeting"
+          width={1200}
+          height={600}
+          priority
+          className="w-full"
+        />
         <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
           Welcome to ConferenceHub
         </h1>

@@ -17,10 +17,20 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
 export const metadata: Metadata = {
-  title: "ConferenceHub",
-  description: "Conference room booking",
+  title: {
+    template: "%s | ConferenceHub",
+    default: "ConferenceHub",
+  },
+  description: "Book conference rooms with ease.",
+  metadataBase: new URL("https://conferencehub.vercel.app"),
+  openGraph: {
+    siteName: "ConferenceHub",
+    type: "website",
+  }, 
 };
+
 export default async function RootLayout({
   children,
 }: Readonly<{

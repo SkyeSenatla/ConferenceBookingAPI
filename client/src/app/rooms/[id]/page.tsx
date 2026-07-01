@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { RoomResponse } from "@/types";
-import { BookingWizard } from "@/components/BookingWizard";
-import { QuickBookingForm } from "@/components/QuickBookingForm"; 
-
-
+import { QuickBookingForm } from "@/components/QuickBookingForm";
+import { BookingWizard } from "@/components/BookingWizardClient";
+import type { Metadata } from "next";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -13,6 +12,25 @@ async function getRoom(id: string): Promise<RoomResponse | null> {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Failed to fetch room: ${res.status}`);
   return res.json();
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const room = await getRoom(id);
+  if (!room) return { title: "Room	Not	Found" };
+  return {
+    title: room.name,
+    description: `Book	${room.name}	on	${room.floor}.	Capacity:	${room.capacity}	people.`,
+    openGraph: {
+      title: `${room.name}	|	ConferenceHub`,
+      description: `Book	${room.name}	on	${room.floor}.	Capacity:	${room.capacity}	people.`,
+      type: "website",
+    },
+  };
 }
 
 export default async function RoomDetailPage({
@@ -41,8 +59,8 @@ export default async function RoomDetailPage({
             </h1>
             <span
               className={`rounded px-2 py-1 text-sm font-medium ${room.isAvailable
-                  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                  : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                 }`}
             >
               {room.isAvailable ? "Available" : "Unavailable"}
@@ -56,14 +74,14 @@ export default async function RoomDetailPage({
         {room.isAvailable ? (
           <div className="space-y-8">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400
                 dark:text-gray-500">
                 Full booking form — React Query
               </p>
               <BookingWizard roomId={room.id} roomName={room.name} />
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400
 dark:text-gray-500">
                 Quick book — Server Action
               </p>
